@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QLabel, QWidget, QListWidget, QStackedWidget, QCheckBox, QPushButton
+from PySide6.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QLabel, QWidget, QListWidget, QStackedWidget, QCheckBox, QPushButton, QMessageBox
 from PySide6.QtCore import Qt
 from PySide6 import QtCore
 from PySide6.QtGui import QPixmap
@@ -97,7 +97,7 @@ class MainWindow(QWidget):
         appearance_layout = QVBoxLayout()
         appearance_label = QLabel("Appearance")
         appearance_layout.addWidget(appearance_label, alignment=Qt.AlignCenter)
-        wallpaper_button = QPushButton("Change Wallpaper")
+        wallpaper_button = QPushButton("Change Desktop Wallpaper")
         wallpaper_button.clicked.connect(self.change_wallpaper)
         appearance_layout.addWidget(wallpaper_button, alignment=Qt.AlignCenter)
         appearance_layout.addStretch()
@@ -143,6 +143,7 @@ class MainWindow(QWidget):
         self.buttons_layout.addWidget(self.quit_button)
 
         self.about_button = QPushButton("About")
+        self.about_button.clicked.connect(lambda: QMessageBox.about(self, "About uSettings", "uSettings is a simple settings application written in Python using PySide6."))
         self.buttons_layout.addWidget(self.about_button)
 
         self.sidebar_layout.addLayout(self.buttons_layout)
