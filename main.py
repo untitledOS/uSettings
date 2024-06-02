@@ -12,6 +12,10 @@ class UpdateSystemThread(QtCore.QThread):
     
     def run(self):
         user = os.getlogin()
+        os.makedirs(f"/home/{user}/.local/share/usettings", exist_ok=True)
+        if not os.path.isfile(f"/home/{user}/.local/share/usettings/update_script.sh"):
+            with open(f"/home/{user}/.local/share/usettings/update_script.sh", "a") as f:
+                pass
         with open(f"/home/{user}/.local/share/usettings/update_script.sh", "w") as f:
             if "pacman" in self.sources:
                 print("Updating pacman packages.")
