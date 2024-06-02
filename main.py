@@ -11,29 +11,32 @@ class UpdateSystemThread(QtCore.QThread):
         self.sources = []
     
     def run(self):
-        if "pacman" in self.sources:
-            print("Updating pacman packages.")
-            subprocess.run(["pkexec", "pacman", "-Syu"])
-        if "apt" in self.sources:
-            print("Updating apt packages.")
-            subprocess.run(["pkexec", "apt", "update"])
-            subprocess.run(["pkexec", "apt", "upgrade"])
-        if "dnf" in self.sources:
-            print("Updating dnf packages.")
-            subprocess.run(["pkexec", "dnf", "update"])
-        if "zypper" in self.sources:
-            print("Updating zypper packages.")
-            subprocess.run(["pkexec", "zypper", "update"])
-        if "Flatpak" in self.sources:
-            print("Updating Flatpak packages.")
-            # update and pass argument to not prompt user
-            subprocess.run(["pkexec", "flatpak", "update", "-y"])
-        if "pip" in self.sources:
-            print("Updating pip packages.")
-            subprocess.run(["pkexec", "pip", "install", "--upgrade", "pip"])
-        if "upkg" in self.sources:
-            print("Updating upkg packages.")
-            subprocess.run(["pkexec", "upkg", "u"])
+        with open("update_script.sh", "w") as f:
+            if "pacman" in self.sources:
+                print("Updating pacman packages.")
+                f.write("pacman -Syu --noconfirm\n")
+            if "apt" in self.sources:
+                print("Updating apt packages.")
+                f.write("apt update -y\n")
+                f.write("apt upgrade -y\n")
+            if "dnf" in self.sources:
+                print("Updating dnf packages.")
+                f.write("dnf -y update\n")
+            if "zypper" in self.sources:
+                print("Updating zypper packages.")
+                f.write("zypper --non-interactive update\n")
+            if "Flatpak" in self.sources:
+                print("Updating Flatpak packages.")
+                f.write("flatpak update -y\n")
+            if "pip" in self.sources:
+                print("Updating pip packages.")
+                f.write("pip install --upgrade pip\n")
+            if "upkg" in self.sources:
+                print("Updating upkg packages.")
+                f.write("upkg u\n")
+        
+        os.chmod("update_script.sh", 0o755)
+        subprocess.run(["pkexec", "sh", "update_script.sh"])
 
 class WallpaperWindow(QWidget):
     def __init__(self):
