@@ -13,24 +13,27 @@ class UpdateSystemThread(QtCore.QThread):
     def run(self):
         if "pacman" in self.sources:
             print("Updating pacman packages.")
-            subprocess.run(["sudo", "pacman", "-Syu"])
+            subprocess.run(["pkexec", "pacman", "-Syu"])
         if "apt" in self.sources:
             print("Updating apt packages.")
-            subprocess.run(["sudo", "apt", "update"])
-            subprocess.run(["sudo", "apt", "upgrade"])
+            subprocess.run(["pkexec", "apt", "update"])
+            subprocess.run(["pkexec", "apt", "upgrade"])
         if "dnf" in self.sources:
             print("Updating dnf packages.")
-            subprocess.run(["sudo", "dnf", "update"])
+            subprocess.run(["pkexec", "dnf", "update"])
         if "zypper" in self.sources:
             print("Updating zypper packages.")
-            subprocess.run(["sudo", "zypper", "update"])
+            subprocess.run(["pkexec", "zypper", "update"])
         if "Flatpak" in self.sources:
             print("Updating Flatpak packages.")
             # update and pass argument to not prompt user
-            subprocess.run(["flatpak", "update", "-y"])
+            subprocess.run(["pkexec", "flatpak", "update", "-y"])
         if "pip" in self.sources:
             print("Updating pip packages.")
-            subprocess.run(["pip", "install", "--upgrade", "pip"])
+            subprocess.run(["pkexec", "pip", "install", "--upgrade", "pip"])
+        if "upkg" in self.sources:
+            print("Updating upkg packages.")
+            subprocess.run(["pkexec", "upkg", "u"])
 
 class WallpaperWindow(QWidget):
     def __init__(self):
@@ -84,10 +87,10 @@ class MainWindow(QWidget):
         self.sidebar_layout.addWidget(self.settings_label)
 
         self.sidebar_list = QListWidget()
-        self.sidebar_list.addItem("Appearance")
-        self.sidebar_list.addItem("About this system")
+        # self.sidebar_list.addItem("Appearance")
+        # self.sidebar_list.addItem("About this system")
         self.sidebar_list.addItem("System Update")
-        self.sidebar_list.addItem("Users")
+        # self.sidebar_list.addItem("Users")
         self.sidebar_layout.addWidget(self.sidebar_list)
 
         self.pages = QStackedWidget()
@@ -173,7 +176,7 @@ class MainWindow(QWidget):
         self.update_system_layout.itemAt(self.update_system_layout.count() - 2).widget().setText("System Update Complete.")
 
     def update_page(self, text):
-        pages = {0: self.appearance, 1: self.about_system, 2: self.update_system}
+        pages = {0: self.appearance, 1: self.about_system, 0: self.update_system}
         self.pages.setCurrentWidget(pages[self.sidebar_list.currentRow()])
 
     def get_software_information(self):
@@ -225,6 +228,8 @@ class MainWindow(QWidget):
             del pip
         except ImportError:
             pass
+        if os.path.exists("/usr/bin/upkg"):
+            sources.append("upkg")
         return sources
 
 if __name__ == "__main__":
