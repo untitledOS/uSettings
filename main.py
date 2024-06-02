@@ -11,7 +11,8 @@ class UpdateSystemThread(QtCore.QThread):
         self.sources = []
     
     def run(self):
-        with open("update_script.sh", "w") as f:
+        user = os.getlogin()
+        with open(f"/home/{user}/.local/share/usettings/update_script.sh", "w") as f:
             if "pacman" in self.sources:
                 print("Updating pacman packages.")
                 f.write("pacman -Syu --noconfirm\n")
@@ -36,7 +37,7 @@ class UpdateSystemThread(QtCore.QThread):
                 f.write("upkg u\n")
         
         os.chmod("update_script.sh", 0o755)
-        subprocess.run(["pkexec", "sh", "update_script.sh"])
+        subprocess.run(["pkexec", "sh", f"/home/{user}/.local/share/usettings/update_script.sh"])
 
 class WallpaperWindow(QWidget):
     def __init__(self):
