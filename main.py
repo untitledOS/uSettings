@@ -182,6 +182,7 @@ class MainWindow(QWidget):
         print("Finished updating.")
         self.update_thread.deleteLater()
         self.update_system_layout.itemAt(self.update_system_layout.count() - 2).widget().setText("System Update Complete.")
+        subprocess.run("notify-send 'System Update Complete'", shell=True)
 
     def update_page(self, text):
         pages = {0: self.appearance, 1: self.about_system, 0: self.update_system}
