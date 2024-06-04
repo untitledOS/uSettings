@@ -1,8 +1,9 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QLabel, QWidget, QListWidget, QStackedWidget, QCheckBox, QPushButton, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QLabel, QWidget, QListWidget, QStackedWidget, QCheckBox, QPushButton, QMessageBox, QGroupBox
 from PySide6.QtCore import Qt
 from PySide6 import QtCore
 from PySide6.QtGui import QPixmap
 from outdated_flatpaks import outdated_flatpaks
+from bluetooth import get_connected_devices, get_paired_devices, connect_device, disconnect_device, is_bluetooth_on
 
 import sys, platform, psutil, shutil, subprocess, os, json
 
@@ -99,12 +100,15 @@ class MainWindow(QWidget):
         self.sidebar_list = QListWidget()
         # self.sidebar_list.addItem("Appearance")
         # self.sidebar_list.addItem("About this system")
+        self.sidebar_list.addItem("Bluetooth")
         self.sidebar_list.addItem("System Update")
         # self.sidebar_list.addItem("Users")
         self.sidebar_layout.addWidget(self.sidebar_list)
 
         self.pages = QStackedWidget()
         self.layout.addWidget(self.pages)
+
+        self.refresh_bluetooth()
 
         self.appearance = QWidget()
         appearance_layout = QVBoxLayout()
@@ -135,14 +139,14 @@ class MainWindow(QWidget):
         update_system_label = QLabel("System Update", alignment=Qt.AlignCenter)
         update_system_label.setContentsMargins(0, 0, 0, 20)
         self.update_system_layout.addWidget(update_system_label)
-        self.update_sources_label = QLabel("Available Update Sources:")
-        self.update_sources_label.setContentsMargins(0, 0, 0, 20)
-        self.update_system_layout.addWidget(self.update_sources_label)
+        update_sources_groupbox = QGroupBox("Available Update Sources:")
+        update_sources_layout = QVBoxLayout()
+        update_sources_groupbox.setLayout(update_sources_layout)
         self.source_names = {"pacman": "Arch Linux Packages (pacman)", "apt": "Debian/Ubuntu Packages (apt)", "dnf": "Fedora Packages (dnf)", "zypper": "openSUSE Packages (zypper)", "Flatpak": "Flatpak Packages", "pip": "Python Packages (pip)", "upkg": "untitledOS Packages (upkg)"}
         index = 0
         for source in sorted(self.get_update_sources()):
             source_layout = QVBoxLayout()
-            self.update_system_layout.addLayout(source_layout)
+            update_sources_layout.addLayout(source_layout)
             outdated_packages = self.get_outdated_packages(source)
             source_layout.addWidget(QCheckBox(self.source_names[source], checked=True))
             if outdated_packages != None:
@@ -154,6 +158,7 @@ class MainWindow(QWidget):
             if index == len(self.get_update_sources()) - 1:
                 source_layout.setContentsMargins(0, 0, 0, 40)
             index += 1
+        self.update_system_layout.addWidget(update_sources_groupbox)
         update_button = QPushButton("Update System")
         self.update_system_layout.addWidget(update_button)
         update_button.clicked.connect(self.start_update_system_thread)
@@ -181,6 +186,53 @@ class MainWindow(QWidget):
 
         self.setLayout(self.layout)
 
+    def refresh_bluetooth(self):
+        self.bluetooth = QWidget()
+        bluetooth_layout = QVBoxLayout()
+        bluetooth_layout.addWidget(QLabel("Bluetooth"), alignment=Qt.AlignCenter)
+        if is_bluetooth_on():
+            bluetooth_button = QPushButton("Turn Off Bluetooth")
+        else:
+            bluetooth_button = QPushButton("Turn On Bluetooth")
+        bluetooth_layout.addWidget(bluetooth_button, alignment=Qt.AlignCenter)
+        devices_groupbox = QGroupBox("Devices")
+        bluetooth_layout.addWidget(devices_groupbox)
+        devices_layout = QVBoxLayout()
+        for device in get_paired_devices():
+            device_layout = QHBoxLayout()
+            device_layout.addWidget(QLabel(device["name"]), alignment=Qt.AlignCenter)
+            if device["mac"] in [device["mac"] for device in get_connected_devices()]:
+                disconnect_button = QPushButton("Disconnect")
+                disconnect_button.clicked.connect(self.create_disconnect_slot(disconnect_button, device["mac"]))
+                device_layout.addWidget(disconnect_button, alignment=Qt.AlignCenter)
+            else:
+                connect_button = QPushButton("Connect")
+                connect_button.clicked.connect(self.create_connect_slot(connect_button, device["mac"]))
+                device_layout.addWidget(connect_button, alignment=Qt.AlignCenter)
+            devices_layout.addLayout(device_layout)
+        devices_groupbox.setLayout(devices_layout)
+        bluetooth_layout.addStretch()
+        self.bluetooth.setLayout(bluetooth_layout)
+        self.pages.addWidget(self.bluetooth)
+        self.pages.setCurrentWidget(self.bluetooth)
+
+    def qt_disconnect_device(self, mac):
+        # change text to "Disconnecting..."
+        disconnect_device(mac)
+        self.refresh_bluetooth()
+        self.show()
+
+    def qt_connect_device(self, mac):
+        connect_device(mac)
+        self.refresh_bluetooth()
+        self.show()
+
+    def create_disconnect_slot(self, button, mac):
+        return lambda: (button.setText("Disconnecting..."), QApplication.processEvents(), self.qt_disconnect_device(mac))
+
+    def create_connect_slot(self, button, mac):
+        return lambda: (button.setText("Connecting..."), QApplication.processEvents(), self.qt_connect_device(mac))
+        
     def change_wallpaper(self):
         self.wallpaper_window = WallpaperWindow()
         self.wallpaper_window.show()
@@ -189,13 +241,9 @@ class MainWindow(QWidget):
         self.update_system_layout.itemAt(self.update_system_layout.count() - 2).widget().setText("Updating System...")
         self.update_thread = UpdateSystemThread()
         sources = []
-        # for i in range(self.update_system_layout.count() - 2):
-        #     checkbox = self.update_system_layout.itemAt(i).widget()
-        #     if checkbox is not None and type(checkbox) == QCheckBox:
-        #         if checkbox.isChecked():
-        #             sources.append(checkbox.text())
-        for i in range(self.update_system_layout.count() - 2):
-            layout = self.update_system_layout.itemAt(i)
+        update_sources_groupbox = self.update_system_layout.itemAt(1).widget()
+        for i in range(update_sources_groupbox.layout().count()):
+            layout = update_sources_groupbox.layout().itemAt(i)
             if layout is not None and type(layout) == QVBoxLayout:
                 checkbox = layout.itemAt(0).widget()
                 if checkbox.isChecked():
@@ -211,7 +259,7 @@ class MainWindow(QWidget):
         subprocess.run("notify-send 'System Update Complete'", shell=True)
 
     def update_page(self, text):
-        pages = {0: self.appearance, 1: self.about_system, 0: self.update_system}
+        pages = {0: self.bluetooth, 1: self.update_system}
         self.pages.setCurrentWidget(pages[self.sidebar_list.currentRow()])
 
     def get_software_information(self):
