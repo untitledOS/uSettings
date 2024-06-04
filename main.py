@@ -142,7 +142,7 @@ class MainWindow(QWidget):
         update_sources_groupbox = QGroupBox("Available Update Sources:")
         update_sources_layout = QVBoxLayout()
         update_sources_groupbox.setLayout(update_sources_layout)
-        self.source_names = {"pacman": "Arch Linux Packages (pacman)", "apt": "Debian/Ubuntu Packages (apt)", "dnf": "Fedora Packages (dnf)", "zypper": "openSUSE Packages (zypper)", "Flatpak": "Flatpak Packages", "pip": "Python Packages (pip)", "upkg": "untitledOS Packages (upkg)"}
+        self.source_names = {"pacman": "Arch Linux Packages (pacman)", "apt": "Debian/Ubuntu Packages (apt)", "dnf": "Fedora Packages (dnf)", "zypper": "openSUSE Packages (zypper)", "Flatpak": "Flatpak Packages", "pip": "Python Packages (pip)", "upkg": "untitledOS Packages (uPKG)"}
         index = 0
         for source in sorted(self.get_update_sources()):
             source_layout = QVBoxLayout()
@@ -330,6 +330,8 @@ class MainWindow(QWidget):
             if "ostree" in dnf_status:
                 return None
             return len(subprocess.run("dnf check-update", capture_output=True, text=True, shell=True).stdout.strip().split("\n"))
+        elif source == "upkg":
+            return len(subprocess.run("upkg o", capture_output=True, text=True, shell=True).stdout.strip().split("\n"))
         else:
             return None
 
