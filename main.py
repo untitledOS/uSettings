@@ -40,7 +40,7 @@ class UpdateSystemThread(QtCore.QThread):
                 print("Updating upkg packages.")
                 f.write("upkg u\n")
         
-        os.chmod("update_script.sh", 0o755)
+        os.chmod(f"/home/{user}/.local/share/usettings/update_script.sh", 0o755)
         subprocess.run(["pkexec", "sh", f"/home/{user}/.local/share/usettings/update_script.sh"])
 
 class WallpaperWindow(QWidget):
