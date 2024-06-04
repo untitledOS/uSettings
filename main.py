@@ -2,8 +2,9 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QVBoxLayou
 from PySide6.QtCore import Qt
 from PySide6 import QtCore
 from PySide6.QtGui import QPixmap
+from outdated_flatpaks import outdated_flatpaks
 
-import sys, platform, psutil, shutil, subprocess, os
+import sys, platform, psutil, shutil, subprocess, os, json
 
 class UpdateSystemThread(QtCore.QThread):
     def __init__(self, parent=None):
@@ -36,10 +37,11 @@ class UpdateSystemThread(QtCore.QThread):
             if "pip" in self.sources:
                 print("Updating pip packages.")
                 f.write("pip install --upgrade pip\n")
+                f.write("pip install --upgrade pip")
             if "upkg" in self.sources:
                 print("Updating upkg packages.")
                 f.write("upkg u\n")
-        
+
         os.chmod(f"/home/{user}/.local/share/usettings/update_script.sh", 0o755)
         subprocess.run(["pkexec", "sh", f"/home/{user}/.local/share/usettings/update_script.sh"])
 
@@ -131,9 +133,27 @@ class MainWindow(QWidget):
         self.update_system = QWidget()
         self.update_system_layout = QVBoxLayout()
         update_system_label = QLabel("System Update", alignment=Qt.AlignCenter)
+        update_system_label.setContentsMargins(0, 0, 0, 20)
         self.update_system_layout.addWidget(update_system_label)
-        for source in self.get_update_sources():
-            self.update_system_layout.addWidget(QCheckBox(source, checked=True))
+        self.update_sources_label = QLabel("Available Update Sources:")
+        self.update_sources_label.setContentsMargins(0, 0, 0, 20)
+        self.update_system_layout.addWidget(self.update_sources_label)
+        self.source_names = {"pacman": "Arch Linux Packages (pacman)", "apt": "Debian/Ubuntu Packages (apt)", "dnf": "Fedora Packages (dnf)", "zypper": "openSUSE Packages (zypper)", "Flatpak": "Flatpak Packages", "pip": "Python Packages (pip)", "upkg": "untitledOS Packages (upkg)"}
+        index = 0
+        for source in sorted(self.get_update_sources()):
+            source_layout = QVBoxLayout()
+            self.update_system_layout.addLayout(source_layout)
+            outdated_packages = self.get_outdated_packages(source)
+            source_layout.addWidget(QCheckBox(self.source_names[source], checked=True))
+            if outdated_packages != None:
+                if not outdated_packages == 1:
+                    plural = "s"
+                else:
+                    plural = ""
+                source_layout.addWidget(QLabel(f"        {outdated_packages} update{plural} available."))
+            if index == len(self.get_update_sources()) - 1:
+                source_layout.setContentsMargins(0, 0, 0, 40)
+            index += 1
         update_button = QPushButton("Update System")
         self.update_system_layout.addWidget(update_button)
         update_button.clicked.connect(self.start_update_system_thread)
@@ -169,11 +189,17 @@ class MainWindow(QWidget):
         self.update_system_layout.itemAt(self.update_system_layout.count() - 2).widget().setText("Updating System...")
         self.update_thread = UpdateSystemThread()
         sources = []
+        # for i in range(self.update_system_layout.count() - 2):
+        #     checkbox = self.update_system_layout.itemAt(i).widget()
+        #     if checkbox is not None and type(checkbox) == QCheckBox:
+        #         if checkbox.isChecked():
+        #             sources.append(checkbox.text())
         for i in range(self.update_system_layout.count() - 2):
-            checkbox = self.update_system_layout.itemAt(i).widget()
-            if checkbox is not None and type(checkbox) == QCheckBox:
+            layout = self.update_system_layout.itemAt(i)
+            if layout is not None and type(layout) == QVBoxLayout:
+                checkbox = layout.itemAt(0).widget()
                 if checkbox.isChecked():
-                    sources.append(checkbox.text())
+                    sources.append(list(self.source_names.keys())[list(self.source_names.values()).index(checkbox.text())])
         self.update_thread.sources = sources
         self.update_thread.finished.connect(self.finished_updating)
         self.update_thread.start()
@@ -240,6 +266,24 @@ class MainWindow(QWidget):
         if os.path.exists("/usr/bin/upkg"):
             sources.append("upkg")
         return sources
+
+    def get_outdated_packages(self, source):
+        if source == "pip":
+            outdated = subprocess.run("pip --disable-pip-version-check list --outdated --format=json", capture_output=True, text=True, shell=True).stdout
+            return len(json.loads(outdated))
+        elif source == "Flatpak":
+            return outdated_flatpaks()
+        elif source == "pacman":
+            return len(subprocess.run("pacman -Qu", capture_output=True, text=True, shell=True).stdout.strip().split("\n"))
+        elif source == "apt":
+            return len(subprocess.run("apt list --upgradable", capture_output=True, text=True, shell=True).stdout.strip().split("\n"))
+        elif source == "dnf":
+            dnf_status = subprocess.run("dnf status", capture_output=True, text=True, shell=True).stdout
+            if "ostree" in dnf_status:
+                return None
+            return len(subprocess.run("dnf check-update", capture_output=True, text=True, shell=True).stdout.strip().split("\n"))
+        else:
+            return None
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
